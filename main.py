@@ -146,7 +146,12 @@ def ver_estudiante() -> None:
         None
     """
     imprimir_titulo("VER ESTUDIANTE POR ID")
-    estudiante = estudiantes.obtener(pedir_entero("Id: "))
+    id_estudiante = pedir_entero("Id: ")
+    if id_estudiante is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
+    estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("Estudiante no encontrado.")
     else:
@@ -166,6 +171,10 @@ def actualizar_estudiante() -> None:
     """
     imprimir_titulo("ACTUALIZAR ESTUDIANTE")
     id_estudiante = pedir_entero("Id: ")
+    if id_estudiante is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("Estudiante no encontrado.")
@@ -201,6 +210,10 @@ def eliminar_estudiante() -> None:
     """
     imprimir_titulo("ELIMINAR ESTUDIANTE")
     id_estudiante = pedir_entero("Id: ")
+    if id_estudiante is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     estudiante = estudiantes.obtener(id_estudiante)
     if estudiante is None:
         imprimir_error("Estudiante no encontrado.")
@@ -289,6 +302,10 @@ def ver_profesor() -> None:
     """
     imprimir_titulo("VER PROFESOR POR ID")
     id_profesor = pedir_entero("Id: ")
+    if id_profesor is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     profesor = profesores.obtener(id_profesor)
     if profesor is None:
         imprimir_error("Profesor no encontrado.")
@@ -296,7 +313,6 @@ def ver_profesor() -> None:
 
     mostrar_detalle(profesor)
 
-    # La Vista consulta las materias a cargo de este profesor
     asignadas = materias.materias_por_docente(profesor.id)
     print("\n  Materias que imparte:")
     if asignadas:
@@ -320,6 +336,10 @@ def actualizar_profesor() -> None:
     """
     imprimir_titulo("ACTUALIZAR PROFESOR")
     id_profesor = pedir_entero("Id: ")
+    if id_profesor is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     profesor = profesores.obtener(id_profesor)
     if profesor is None:
         imprimir_error("Profesor no encontrado.")
@@ -345,7 +365,7 @@ def actualizar_profesor() -> None:
 
 def eliminar_profesor() -> None:
     """
-    Remueve un profesor previa confirmacion.
+    Remueve un profesor previa confirmacion y desasigna sus materias.
 
     Args:
         Ninguno
@@ -355,13 +375,17 @@ def eliminar_profesor() -> None:
     """
     imprimir_titulo("ELIMINAR PROFESOR")
     id_profesor = pedir_entero("Id: ")
+    if id_profesor is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     profesor = profesores.obtener(id_profesor)
     if profesor is None:
         imprimir_error("Profesor no encontrado.")
         return pausa()
 
     imprimir_info(f"Se eliminara: {profesor.etiqueta()}")
-    if confirmar("¿Confirma?"):
+    if confirmar("¿Confirma? (Las materias a su cargo quedaran sin docente asignado)"):
         exito, resultado = profesores.eliminar(id_profesor)
         if exito:
             imprimir_exito(resultado)
@@ -441,14 +465,18 @@ def ver_materia() -> None:
         None
     """
     imprimir_titulo("VER MATERIA POR ID")
-    materia = materias.obtener(pedir_entero("Id: "))
+    id_materia = pedir_entero("Id: ")
+    if id_materia is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
+    materia = materias.obtener(id_materia)
     if materia is None:
         imprimir_error("Materia no encontrada.")
         return pausa()
 
     mostrar_detalle(materia)
 
-    # La Vista resuelve el nombre del docente a partir del profesor_id
     if materia.tiene_docente():
         docente = profesores.obtener(materia.profesor_id)
         nombre_doc = docente.nombre_completo() if docente else "Docente no localizado"
@@ -471,6 +499,10 @@ def actualizar_materia() -> None:
     """
     imprimir_titulo("ACTUALIZAR MATERIA")
     id_materia = pedir_entero("Id: ")
+    if id_materia is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     materia = materias.obtener(id_materia)
     if materia is None:
         imprimir_error("Materia no encontrada.")
@@ -506,6 +538,10 @@ def eliminar_materia() -> None:
     """
     imprimir_titulo("ELIMINAR MATERIA")
     id_materia = pedir_entero("Id: ")
+    if id_materia is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
     materia = materias.obtener(id_materia)
     if materia is None:
         imprimir_error("Materia no encontrada.")
@@ -611,7 +647,7 @@ def registrar_matricula() -> None:
         "periodo": input("Periodo (ej. 2026-1): "),
     }
 
-    if None in (datos["estudiante_id"], datos["materia_id"]):
+    if datos["estudiante_id"] is None or datos["materia_id"] is None:
         imprimir_error("Los IDs deben ser numeros enteros.")
         return pausa()
 
@@ -620,7 +656,6 @@ def registrar_matricula() -> None:
         imprimir_error(resultado)
         return pausa()
 
-    # La Vista resuelve las entidades para presentar los nombres reales
     estudiante = estudiantes.obtener(resultado.estudiante_id)
     materia = materias.obtener(resultado.materia_id)
     docente = profesores.obtener(materia.profesor_id) if materia.tiene_docente() else None
@@ -664,10 +699,16 @@ def asentar_calificacion() -> None:
     """
     imprimir_titulo("ASENTAR CALIFICACION")
     id_matricula = pedir_entero("Id de la matricula: ")
-    if not id_matricula:
+    if id_matricula is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
         return pausa()
 
-    nota = input("Ingrese la nota (0 a 20): ")
+    matricula = matriculas.obtener(id_matricula)
+    if matricula is None:
+        imprimir_error(f"No existe la matricula con ID {id_matricula}.")
+        return pausa()
+
+    nota = input(f"Ingrese la nota (0 a 20) [Actual: {matricula.nota}]: ").strip()
     exito, resultado = matriculas.actualizar(id_matricula, {"nota": nota})
     if exito:
         imprimir_exito(f"Calificacion asentada: {resultado.nota} -> Estado: [{resultado.estado()}]")
@@ -726,7 +767,17 @@ def anular_matricula() -> None:
     """
     imprimir_titulo("ANULAR MATRICULA")
     id_matricula = pedir_entero("Id de la matricula: ")
-    if id_matricula and confirmar("Se liberara el cupo. ¿Confirma?"):
+    if id_matricula is None:
+        imprimir_error("Debe ingresar un identificador numerico valido.")
+        return pausa()
+
+    matricula = matriculas.obtener(id_matricula)
+    if matricula is None:
+        imprimir_error(f"No existe la matricula con ID {id_matricula}.")
+        return pausa()
+
+    imprimir_info(f"Se anulara: {matricula.etiqueta()}")
+    if confirmar("Se liberara el cupo en la materia. ¿Confirma?"):
         exito, resultado = matriculas.eliminar(id_matricula)
         if exito:
             imprimir_exito(resultado)

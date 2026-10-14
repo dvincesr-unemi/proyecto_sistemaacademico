@@ -146,10 +146,15 @@ class EstudianteController(CrudBase):
         Returns:
             str o None: Mensaje descriptivo si hay error, de lo contrario None.
         """
+        campos_obligatorios = ("nombre", "apellido", "email", "carnet", "carrera")
         if id_actual is None:
-            for campo in ("nombre", "apellido", "email"):
+            for campo in campos_obligatorios:
                 if str(datos.get(campo, "")).strip() == "":
-                    return f"El campo {campo} es obligatorio"
+                    return f"El campo '{campo}' es obligatorio"
+        else:
+            for campo, valor in datos.items():
+                if campo in campos_obligatorios and str(valor).strip() == "":
+                    return f"El campo '{campo}' no puede quedar vacio"
 
         if "email" in datos:
             email = str(datos["email"]).strip().lower()
@@ -158,6 +163,12 @@ class EstudianteController(CrudBase):
             usados = {e.email for e in self.lista if e.id != id_actual}
             if email in usados:
                 return "Ese email ya esta registrado en otro estudiante"
+
+        if "carnet" in datos:
+            carnet = str(datos["carnet"]).strip().upper()
+            usados_carnet = {e.carnet for e in self.lista if e.id != id_actual}
+            if carnet in usados_carnet:
+                return f"El carnet '{carnet}' ya pertenece a otro estudiante"
 
         return None
 
@@ -246,8 +257,8 @@ class EstudianteController(CrudBase):
                                 str(datos["nombre"]).strip().title(),
                                 str(datos["apellido"]).strip().title(),
                                 str(datos["email"]).strip().lower(),
-                                str(datos.get("carnet", "")).strip().upper(),
-                                str(datos.get("carrera", "")).strip().title())
+                                str(datos["carnet"]).strip().upper(),
+                                str(datos["carrera"]).strip().title())
         self.lista.append(estudiante)
         self.guardar()
         return True, estudiante
@@ -335,10 +346,23 @@ class ProfesorController(CrudBase):
         Returns:
             None
         """
+        self.materias = None
         self.gestor = GestorJSON(archivo)
         self.lista = []
         for datos in self.gestor.leer():
             self.lista.append(Profesor.desde_diccionario(datos))
+
+    def vincular_materias(self, materias_controller):
+        """
+        Asocia el controlador de materias para resolver desasignaciones en cascada.
+        
+        Args:
+            materias_controller (MateriaController): Instancia del catalogo de materias.
+            
+        Returns:
+            None
+        """
+        self.materias = materias_controller
 
     def guardar(self):
         """
@@ -366,10 +390,15 @@ class ProfesorController(CrudBase):
         Returns:
             str o None: Error identificado o None si es valido.
         """
+        campos_obligatorios = ("nombre", "apellido", "email", "especialidad")
         if id_actual is None:
-            for campo in ("nombre", "apellido", "email"):
+            for campo in campos_obligatorios:
                 if str(datos.get(campo, "")).strip() == "":
-                    return f"El campo {campo} es obligatorio"
+                    return f"El campo '{campo}' es obligatorio"
+        else:
+            for campo, valor in datos.items():
+                if campo in campos_obligatorios and str(valor).strip() == "":
+                    return f"El campo '{campo}' no puede quedar vacio"
 
         if "email" in datos:
             email = str(datos["email"]).strip().lower()
@@ -467,7 +496,7 @@ class ProfesorController(CrudBase):
                             str(datos["apellido"]).strip().title(),
                             str(datos["email"]).strip().lower(),
                             str(datos.get("titulo", "")).strip().title(),
-                            str(datos.get("especialidad", "")).strip().title())
+                            str(datos["especialidad"]).strip().title())
         self.lista.append(profesor)
         self.guardar()
         return True, profesor
@@ -511,7 +540,7 @@ class ProfesorController(CrudBase):
 
     def eliminar(self, id_profesor):
         """
-        Elimina un docente del sistema.
+        Elimina un docente del sistema y desvincula sus materias en cascada.
         
         Args:
             id_profesor (int): ID del profesor.
@@ -522,6 +551,11 @@ class ProfesorController(CrudBase):
         profesor = self.obtener(id_profesor)
         if profesor is None:
             return False, f"No existe un profesor con id {id_profesor}"
+
+        if self.materias is not None:
+            for materia in self.materias.materias_por_docente(id_profesor):
+                materia.desasignar_docente()
+            self.materias.guardar()
 
         self.lista.remove(profesor)
         self.guardar()
@@ -543,6 +577,7 @@ class MateriaController(CrudBase):
             None
         """
         self.profesores = profesores
+        self.profesores.vincular_materias(self)
         self.gestor = GestorJSON(archivo)
         self.lista = []
         for datos in self.gestor.leer():
@@ -565,7 +600,7 @@ class MateriaController(CrudBase):
 
     def validar(self, datos, id_actual=None):
         """
-        Comprueba unicidad de codigo y valores numericos de cupos y creditos.
+        Comprueba campos obligatorios, unicidad de codigo y valores de creditos y cupos.
         
         Args:
             datos (dict): Atributos a comprobar.
@@ -574,24 +609,32 @@ class MateriaController(CrudBase):
         Returns:
             str o None: Error detectado o None si la informacion es valida.
         """
+        campos_obligatorios = ("nombre", "codigo", "creditos")
         if id_actual is None:
-            for campo in ("nombre", "codigo"):
+            for campo in campos_obligatorios:
                 if str(datos.get(campo, "")).strip() == "":
-                    return f"El campo {campo} es obligatorio"
+                    return f"El campo '{campo}' es obligatorio"
+        else:
+            for campo, valor in datos.items():
+                if campo in campos_obligatorios and str(valor).strip() == "":
+                    return f"El campo '{campo}' no puede quedar vacio"
 
-        creditos = str(datos.get("creditos", "")).strip()
-        if creditos != "" and not creditos.isdigit():
-            return "Los creditos deben ser un numero entero"
+        if "creditos" in datos:
+            creditos_str = str(datos["creditos"]).strip()
+            if not creditos_str.isdigit() or int(creditos_str) <= 0:
+                return "Los creditos deben ser un numero entero mayor a 0"
 
-        cupos = str(datos.get("cupos", "")).strip()
-        if cupos != "" and not cupos.isdigit():
-            return "Los cupos deben ser un numero entero positivo"
+        if "cupos" in datos:
+            cupos_str = str(datos.get("cupos", "")).strip()
+            if cupos_str != "" and (not cupos_str.isdigit() or int(cupos_str) < 0):
+                return "Los cupos deben ser un numero entero mayor o igual a 0"
 
         if "codigo" in datos:
             codigo = str(datos["codigo"]).strip().upper()
             for otra in self.lista:
                 if otra.codigo == codigo and otra.id != id_actual:
-                    return f"Ya existe una materia con el codigo {codigo}"
+                    return f"Ya existe una materia con el codigo '{codigo}'"
+
         return None
 
     def leer(self):
@@ -671,14 +714,15 @@ class MateriaController(CrudBase):
         if error:
             return False, error
 
-        creditos = str(datos.get("creditos", "")).strip()
-        cupos = str(datos.get("cupos", "")).strip()
+        creditos = int(str(datos["creditos"]).strip())
+        cupos_str = str(datos.get("cupos", "")).strip()
+        cupos = int(cupos_str) if cupos_str != "" else Materia.CUPOS_MAXIMOS
 
         materia = Materia(self.siguiente(),
                           str(datos["nombre"]).strip().title(),
                           str(datos["codigo"]).strip().upper(),
-                          int(creditos) if creditos != "" else 0,
-                          int(cupos) if cupos != "" else Materia.CUPOS_MAXIMOS)
+                          creditos,
+                          cupos)
 
         self.lista.append(materia)
         self.guardar()
@@ -776,10 +820,10 @@ class MateriaController(CrudBase):
         if materia is None:
             return False, f"No existe la materia con id {id_materia}"
 
-        if materia.profesor_id == 0:
+        if not materia.tiene_docente():
             return False, f"La materia {materia.codigo} no tiene ningun docente asignado actualmente"
 
-        materia.profesor_id = 0
+        materia.desasignar_docente()
         self.guardar()
         return True, materia
 
@@ -835,10 +879,10 @@ class MatriculaController(CrudBase):
 
     def validar_creacion(self, datos):
         """
-        Verifica existencia de claves foraneas y disponibilidad de cupo en la materia.
+        Verifica existencia de claves foraneas, periodo obligatorio, cupos y previene duplicados.
         
         Args:
-            datos (dict): Diccionario con estudiante_id y materia_id.
+            datos (dict): Diccionario con estudiante_id, materia_id y periodo.
             
         Returns:
             str o None: Motivo de rechazo o None si la operacion es valida.
@@ -849,12 +893,22 @@ class MatriculaController(CrudBase):
         except (TypeError, ValueError):
             return "estudiante_id y materia_id deben ser numeros enteros"
 
+        periodo = str(datos.get("periodo", "")).strip().upper()
+        if not periodo:
+            return "El periodo academico es obligatorio (ej. '2026-1')"
+
         if self.estudiantes.obtener(estudiante_id) is None:
             return f"No existe un estudiante con id {estudiante_id}"
 
         materia = self.materias.obtener(materia_id)
         if materia is None:
             return f"No existe una materia con id {materia_id}"
+
+        for mat in self.lista:
+            if (mat.estudiante_id == estudiante_id and 
+                mat.materia_id == materia_id and 
+                mat.periodo.upper() == periodo):
+                return f"El estudiante ya esta matriculado en {materia.codigo} para el periodo {periodo}"
 
         if not materia.hay_cupo():
             return f"La materia {materia.codigo} ya no tiene cupos disponibles"
@@ -943,7 +997,7 @@ class MatriculaController(CrudBase):
         matricula = Matricula(self.siguiente(),
                               int(datos["estudiante_id"]),
                               materia.id,
-                              str(datos.get("periodo", "Actual")).strip().upper())
+                              str(datos["periodo"]).strip().upper())
 
         materia.ocupar_cupo()
         self.materias.guardar()
@@ -968,8 +1022,8 @@ class MatriculaController(CrudBase):
         if matricula is None:
             return False, f"No existe la matricula {id_matricula}"
 
-        if "nota" not in datos:
-            return False, "Solo se puede actualizar la nota de una matricula"
+        if "nota" not in datos or str(datos["nota"]).strip() == "":
+            return False, "Debe ingresar una calificacion valida"
 
         if not Materia.es_nota_valida(datos["nota"]):
             return False, "La nota no es valida. Debe ser un numero entre 0 y 20"
