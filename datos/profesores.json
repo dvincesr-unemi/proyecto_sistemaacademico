@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "nombre": "Daniel",
+    "apellido": "Vera",
+    "email": "dv@gmail.com",
+    "titulo": "Msc.",
+    "especialidad": "Sistemas"
+  }
+]

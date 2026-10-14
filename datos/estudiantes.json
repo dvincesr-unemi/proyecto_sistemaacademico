@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "nombre": "Derick",
+    "apellido": "Vinces",
+    "email": "derick@gmail.com",
+    "carnet": "DHSGYIEWG332",
+    "carrera": "Software"
+  },
+  {
+    "id": 2,
+    "nombre": "Jose",
+    "apellido": "Jimenez",
+    "email": "jj@gmail.com",
+    "carnet": "EDGYGU23E",
+    "carrera": "Industrial"
+  }
+]
